@@ -51,57 +51,57 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4|GPIO_PIN_6, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, ACT_ANTENNA_Pin|GPS_RST_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_10|GPIO_PIN_15
-                          |GPIO_PIN_9, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, CAN1_STB_Pin|CAN2_STB_Pin|AIRBRAKE_Pin|VNAV_TARE_Pin
+                          |TEST_LED_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : PC13 PC14 PC15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
+  /*Configure GPIO pins : MAG_INT_Pin IMU1_INT0_Pin IMU1_INT1_Pin */
+  GPIO_InitStruct.Pin = MAG_INT_Pin|IMU1_INT0_Pin|IMU1_INT1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA0 PA5 PA10 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_5|GPIO_PIN_10;
+  /*Configure GPIO pins : GPS_INT_Pin PADS2_INT1_Pin IMU2_INT0_Pin */
+  GPIO_InitStruct.Pin = GPS_INT_Pin|PADS2_INT1_Pin|IMU2_INT0_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA1 PA7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_7;
+  /*Configure GPIO pins : S_SENSING_3V_Pin V_SENSING_3V_Pin */
+  GPIO_InitStruct.Pin = S_SENSING_3V_Pin|V_SENSING_3V_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA4 PA6 */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_6;
+  /*Configure GPIO pins : ACT_ANTENNA_Pin GPS_RST_Pin */
+  GPIO_InitStruct.Pin = ACT_ANTENNA_Pin|GPS_RST_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB0 PB11 PB14 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_11|GPIO_PIN_14;
+  /*Configure GPIO pins : TRANSDUCER_Pin V_SENSING_5V_Pin A_SENSING_5V_Pin */
+  GPIO_InitStruct.Pin = TRANSDUCER_Pin|V_SENSING_5V_Pin|A_SENSING_5V_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB1 PB2 PB10 PB15
-                           PB9 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_10|GPIO_PIN_15
-                          |GPIO_PIN_9;
+  /*Configure GPIO pins : CAN1_STB_Pin CAN2_STB_Pin AIRBRAKE_Pin VNAV_TARE_Pin
+                           TEST_LED_Pin */
+  GPIO_InitStruct.Pin = CAN1_STB_Pin|CAN2_STB_Pin|AIRBRAKE_Pin|VNAV_TARE_Pin
+                          |TEST_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PB6 */
-  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  /*Configure GPIO pin : IMU2_INT1_Pin */
+  GPIO_InitStruct.Pin = IMU2_INT1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(IMU2_INT1_GPIO_Port, &GPIO_InitStruct);
 
 }
 

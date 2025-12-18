@@ -1,7 +1,7 @@
 // ----- LIBRARIES -----
 #include "main.h"
 #include "gpio.h"
-#include "stm32g4xx_hal_gpio.h"
+// #include "stm32g4xx_hal_gpio.h"
 
 // ----- FUNCTION DECLARATION -----
 
@@ -9,8 +9,6 @@
 
 // ----- PREPROCESSED -----
 
-#define  TEST_LED_PERIPHERIAL GPIOB
-#define  TEST_LED_PIN_NUMBER GPIO_PIN_9
 
 // MAIN CODE
 int main(void)
@@ -21,7 +19,7 @@ int main(void)
 
   while (1)
   {
-    HAL_GPIO_TogglePin(TEST_LED_PERIPHERIAL, TEST_LED_PIN_NUMBER);
+    HAL_GPIO_TogglePin(TEST_LED_GPIO_Port, TEST_LED_Pin);
     HAL_Delay(1000);
   }
 }
