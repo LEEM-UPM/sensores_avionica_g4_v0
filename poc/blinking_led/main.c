@@ -1,10 +1,16 @@
 // ----- LIBRARIES -----
 #include "main.h"
 #include "gpio.h"
+#include "stm32g4xx_hal_gpio.h"
 
 // ----- FUNCTION DECLARATION -----
 
   extern void SystemClock_Config(void);
+
+// ----- PREPROCESSED -----
+
+#define  TEST_LED_PERIPHERIAL GPIOB
+#define  TEST_LED_PIN_NUMBER GPIO_PIN_9
 
 // MAIN CODE
 int main(void)
@@ -15,12 +21,7 @@ int main(void)
 
   while (1)
   {
-  //Enciende el LED
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);    
-    HAL_Delay(2000);
-    
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
-    
-    HAL_Delay(2000);
+    HAL_GPIO_TogglePin(TEST_LED_PERIPHERIAL, TEST_LED_PIN_NUMBER);
+    HAL_Delay(1000);
   }
 }
