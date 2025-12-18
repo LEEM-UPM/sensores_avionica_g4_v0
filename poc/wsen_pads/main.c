@@ -21,7 +21,7 @@ static const WE_sensorInterface_t pads = {
         .readTimeout = 1000,
         .writeTimeout = 1000
     },
-    .handle = &hi2c1
+    .handle = &hi2c2
 };
 
 static volatile bool interrupt_triggered = false;
@@ -146,7 +146,7 @@ static bool mcu_init(void)
   SystemClock_Config();
 
   MX_GPIO_Init();
-  MX_I2C1_Init();
+  MX_I2C2_Init();
 
   return true;
 }

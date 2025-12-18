@@ -8,6 +8,7 @@
   #include "WeSensorsSDK.h"
   #include "WSEN_ISDS_2536030320001.h"
   #include "platform.h"
+  #include "stm32g4xx_hal.h"
   #include <stdio.h>
 
 // ----- PREPROCESSED -----
@@ -39,7 +40,7 @@
           .readTimeout = 1000, 
           .writeTimeout = 1000
       },
-      .handle = &hi2c2
+      .handle = &hi2c1
     };
 
     // Is set to true when an interrupt has been triggered 
@@ -78,21 +79,22 @@
   bool hw_init();
   static bool isds_init_leem(void);
     
-  void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin);
-
+  // void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin);
+  void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 
 // ----- MAIN CODE -----
 int main(void) 
 {
+
   hw_init();
 
   while (1)
   {
-    // if (!obtain_accelerations())
-    // {
-    //   // TODO: Warning message
-    //   continue;
-    // }
+    if (!obtain_accelerations())
+    {
+      // TODO: Warning message
+      continue;
+    }
 
     // if (!print_time())
     // {
@@ -128,8 +130,14 @@ bool hw_init()
 
   SystemClock_Config();
   MX_GPIO_Init();
-  MX_I2C2_Init();
 
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+  HAL_Delay(10000);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);   
+  
+
+  // Initialize I2C_1
+     MX_I2C1_Init(); 
   // Initialization WSEN_ISDS
   if ( !isds_init_leem() )
   {
@@ -251,27 +259,6 @@ static bool isds_init_leem(void)
     return true;
 }
 
-bool isds_fifo_init()
-{
-    // Interrupt when FIFO buffer is filled up to threshold on INT0 
-    ISDS_enableFifoThresholdINT0(&isds, ISDS_enable);
-
-    // Interrupts for FIFO buffer full and overrun events on INT1 
-    ISDS_enableFifoOverrunINT1(&isds, ISDS_enable);
-    ISDS_enableFifoFullINT1(&isds, ISDS_enable);
-
-    // No decimation of accelerations and angular rates (i.e. use the FIFO sample rate set in init function) 
-    ISDS_setFifoAccDecimation(&isds, ISDS_fifoDecimationDisabled);
-    ISDS_setFifoGyroDecimation(&isds, ISDS_fifoDecimationDisabled);
-
-    // Enable continuous mode --> If the FIFO is full, the new sample overwrites the older one.
-    ISDS_setFifoMode(&isds, ISDS_continuousMode); 
-
-    return true;
-}
-
-
-
 /**
  * @brief obtain_accelerations function: Samples are collected continuously.
  * When the FIFO buffer is filled up to FIFO_THRESH, the collected data is read
@@ -377,18 +364,36 @@ bool obtain_accelerations()
 //   return true;
 // }
 
-void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   /* Interrupt source depends on example mode. */
 
-  if (GPIO_Pin == GPIO_PIN_0)
+  if (GPIO_Pin == GPIO_PIN_14)
   {
     /* Trigger event handling in main function. */
     interrupt0Triggered = true;
   }
-  else if (GPIO_Pin == GPIO_PIN_1)
+  else if (GPIO_Pin == GPIO_PIN_15)
   {
     /* Trigger event handling in main function. */
     interrupt1Triggered = true;
   }
 }
+
+
+// void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
+// {
+//   /* Interrupt source depends on example mode. */
+
+//   if (GPIO_Pin == GPIO_PIN_14)
+//   {
+//     /* Trigger event handling in main function. */
+//     interrupt0Triggered = true;
+//   }
+//   else if (GPIO_Pin == GPIO_PIN_15)
+//   {
+//     /* Trigger event handling in main function. */
+//     interrupt1Triggered = true;
+//   }
+// }
