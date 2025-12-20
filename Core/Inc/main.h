@@ -75,6 +75,7 @@ void Error_Handler(void);
 #define ACT_ANTENNA_GPIO_Port GPIOA
 #define PADS2_INT1_Pin GPIO_PIN_5
 #define PADS2_INT1_GPIO_Port GPIOA
+#define PADS2_INT1_EXTI_IRQn EXTI9_5_IRQn
 #define GPS_RST_Pin GPIO_PIN_6
 #define GPS_RST_GPIO_Port GPIOA
 #define V_SENSING_3V_Pin GPIO_PIN_7
@@ -101,6 +102,7 @@ void Error_Handler(void);
 #define VNAV_RXB4_GPIO_Port GPIOB
 #define IMU2_INT1_Pin GPIO_PIN_6
 #define IMU2_INT1_GPIO_Port GPIOB
+#define IMU2_INT1_EXTI_IRQn EXTI9_5_IRQn
 #define TEST_LED_Pin GPIO_PIN_9
 #define TEST_LED_GPIO_Port GPIOB
 
