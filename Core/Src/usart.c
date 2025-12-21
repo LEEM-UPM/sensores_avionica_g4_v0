@@ -177,7 +177,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     PB3     ------> USART2_TX
     PB4     ------> USART2_RX
     */
-    GPIO_InitStruct.Pin = VNAV_RX_Pin|VNAV_RXB4_Pin;
+    GPIO_InitStruct.Pin = VNAV_TX_Pin|VNAV_RX_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -223,7 +223,7 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
     PB3     ------> USART2_TX
     PB4     ------> USART2_RX
     */
-    HAL_GPIO_DeInit(GPIOB, VNAV_RX_Pin|VNAV_RXB4_Pin);
+    HAL_GPIO_DeInit(GPIOB, VNAV_TX_Pin|VNAV_RX_Pin);
 
   /* USER CODE BEGIN USART2_MspDeInit 1 */
 

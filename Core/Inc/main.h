@@ -95,10 +95,10 @@ void Error_Handler(void);
 #define VNAV_TARE_GPIO_Port GPIOB
 #define IMU2_INT0_Pin GPIO_PIN_10
 #define IMU2_INT0_GPIO_Port GPIOA
-#define VNAV_RX_Pin GPIO_PIN_3
+#define VNAV_TX_Pin GPIO_PIN_3
+#define VNAV_TX_GPIO_Port GPIOB
+#define VNAV_RX_Pin GPIO_PIN_4
 #define VNAV_RX_GPIO_Port GPIOB
-#define VNAV_RXB4_Pin GPIO_PIN_4
-#define VNAV_RXB4_GPIO_Port GPIOB
 #define IMU2_INT1_Pin GPIO_PIN_6
 #define IMU2_INT1_GPIO_Port GPIOB
 #define TEST_LED_Pin GPIO_PIN_9
