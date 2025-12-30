@@ -59,10 +59,13 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define MAG_INT_Pin GPIO_PIN_13
 #define MAG_INT_GPIO_Port GPIOC
+#define MAG_INT_EXTI_IRQn EXTI15_10_IRQn
 #define IMU1_INT0_Pin GPIO_PIN_14
 #define IMU1_INT0_GPIO_Port GPIOC
+#define IMU1_INT0_EXTI_IRQn EXTI15_10_IRQn
 #define IMU1_INT1_Pin GPIO_PIN_15
 #define IMU1_INT1_GPIO_Port GPIOC
+#define IMU1_INT1_EXTI_IRQn EXTI15_10_IRQn
 #define GPS_INT_Pin GPIO_PIN_0
 #define GPS_INT_GPIO_Port GPIOA
 #define S_SENSING_3V_Pin GPIO_PIN_1
@@ -96,10 +99,11 @@ void Error_Handler(void);
 #define VNAV_TARE_GPIO_Port GPIOB
 #define IMU2_INT0_Pin GPIO_PIN_10
 #define IMU2_INT0_GPIO_Port GPIOA
+#define IMU2_INT0_EXTI_IRQn EXTI15_10_IRQn
 #define VNAV_RX_Pin GPIO_PIN_3
 #define VNAV_RX_GPIO_Port GPIOB
-#define VNAV_RXB4_Pin GPIO_PIN_4
-#define VNAV_RXB4_GPIO_Port GPIOB
+#define VNAV_TX_Pin GPIO_PIN_4
+#define VNAV_TX_GPIO_Port GPIOB
 #define IMU2_INT1_Pin GPIO_PIN_6
 #define IMU2_INT1_GPIO_Port GPIOB
 #define IMU2_INT1_EXTI_IRQn EXTI9_5_IRQn
