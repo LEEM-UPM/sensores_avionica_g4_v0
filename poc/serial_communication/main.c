@@ -4,16 +4,15 @@
 #include <string.h>
 #include "usart.h"
 
-// #include "stm32g4xx_hal_gpio.h"
 
 // ----- FUNCTION DECLARATION -----
 
-  extern void SystemClock_Config(void);
+extern void SystemClock_Config(void);
 
 // ----- PREPROCESSED -----
 char msg[] = "Hola desde el STM32\r\n";
 
-// MAIN CODE
+// -----  MAIN CODE ----- 
 int main(void)
 {
   HAL_Init();
