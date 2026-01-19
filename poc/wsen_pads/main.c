@@ -1,267 +1,215 @@
-// Example demonstrating usage of FIFO buffer in continuous mode (threshold interrupt)
+/******************************************************************************
+ * WSEN-PADS FIFO threshold interrupt - Proof of Concept
+ *
+ * Concept:
+ *  - Sensor accumulates samples in FIFO
+ *  - FIFO threshold interrupt triggers data read
+ *  - Firmware reacts to event (event-driven)
+ ******************************************************************************/
 
-// ----- LIBRARIES -----
-
-#include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
+/* === Includes ============================================================ */
 #include <inttypes.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
 
-#include "i2c.h"
 #include "gpio.h"
+#include "i2c.h"
 #include "usart.h"
 
 #include "WSEN_PADS_2511020213301.h"
 #include "platform.h"
 
-// ----- CONFIGURATION MACROS -----
-
+/* === Configuration ======================================================= */
 #define DEBUG_MODE true
 
-#define FIFO_THRESHOLD_VALUE 25
-#define BUFFER_GROUP_SIZE 5
-#define BUFFER_TOTAL_GROUPS (FIFO_THRESHOLD_VALUE/BUFFER_GROUP_SIZE)
+#define FIFO_THRESHOLD 25U
+#define BUFFER_GROUP_SIZE 5U
+#define BUFFER_TOTAL_GROUPS (FIFO_THRESHOLD / BUFFER_GROUP_SIZE)
 
+/* Ensure FIFO grouping is valid */
+_Static_assert(FIFO_THRESHOLD % BUFFER_GROUP_SIZE == 0,
+               "FIFO_THRESHOLD must be multiple of BUFFER_GROUP_SIZE");
 
-// ----- TYPES DEFINITION -----
-
+/* === Sensor interface ==================================================== */
 WE_sensorInterface_t pads = {
     .sensorType = WE_PADS,
     .interfaceType = WE_i2c,
-    .options = {
-        .i2c = {
-            .address = PADS_ADDRESS_I2C_1, 
-            .burstMode = 1, 
-            .slaveTransmitterMode = 0, 
-            .useRegAddrMsbForMultiBytesRead = 0, 
-            .reserved = 0
-        },
-        .readTimeout = 1000,
-        .writeTimeout = 1000
-    },
-    .handle = &hi2c2
-};
+    .options = {.i2c = {.address = PADS_ADDRESS_I2C_1,
+                        .burstMode = 1,
+                        .slaveTransmitterMode = 0,
+                        .useRegAddrMsbForMultiBytesRead = 0,
+                        .reserved = 0},
+                .readTimeout = 1000,
+                .writeTimeout = 1000},
+    .handle = &hi2c2};
 
-// ----- VARIABLE DECLARATION -----ç
+/* === Globals ============================================================= */
+/* Flag set by ISR when FIFO threshold interrupt occurs */
+static volatile bool fifo_event = false;
 
-static volatile bool interrupt_triggered = false;
+/* Fifo state variables */
+static uint8_t fifoLevel;
+static PADS_state_t fifoFull;
 
-int32_t pressure_buffer[PADS_FIFO_BUFFER_SIZE] = {0};
-int16_t temperature_buffer[PADS_FIFO_BUFFER_SIZE] = {0};
-uint32_t pressure_avg[BUFFER_GROUP_SIZE] = {0};
-uint16_t temperature_avg[BUFFER_GROUP_SIZE] = {0};
+/* FIFO raw buffers */
+static int32_t pressure_buffer[PADS_FIFO_BUFFER_SIZE];
+static int16_t temperature_buffer[PADS_FIFO_BUFFER_SIZE];
 
-char msg[150];
-uint32_t init_time;
-uint32_t current_time;
-int fifo_threshold = FIFO_THRESHOLD_VALUE;
-uint8_t fifoLevel;
+/* Processed data */
+static uint32_t pressure_avg[BUFFER_TOTAL_GROUPS];
+static uint16_t temperature_avg[BUFFER_TOTAL_GROUPS];
 
-// ----- FUNCTION DECLARATION -----
+/* Time reference */
+static uint32_t start_time_ms = 0;
 
+/* === Forward declarations ============================================== */
 extern void SystemClock_Config(void);
 
-static bool mcu_init(void);
+static void mcu_init(void);
 static bool pads_init(void);
-static bool pads_start(int fifo_threshold);
-void pads_interrupt_handler();
-bool pads_compute_average_fifo_data();
-void pads_print_data();
+static bool pads_start(void);
 
+static void pads_handle_fifo_event(void);
+static void pads_compute_averages(void);
+static void pads_print_data(void);
 
-// ----- MAIN CODE ----- 
-int main()
-{
-    mcu_init();
-    pads_init();
-    pads_start(fifo_threshold);
+/* === Main ================================================================ */
+int main(void) {
+  mcu_init();
+  pads_init();
+  pads_start();
 
-    init_time = HAL_GetTick();
-    current_time = HAL_GetTick() - init_time;
+  start_time_ms = HAL_GetTick();
 
-    while (1)
-    {
-        pads_interrupt_handler();
+  while (1) {
+    if (fifo_event) {
+      fifo_event = false;
+      pads_handle_fifo_event();
     }
+  }
 }
 
-void pads_interrupt_handler()
-{
-    PADS_getFifoFillLevel(&pads, &fifoLevel);
-    if (fifoLevel <= fifo_threshold)
-    {
-        if (interrupt_triggered == true)
-        {
-            interrupt_triggered = false;
+static void pads_handle_fifo_event(void) {
+  PADS_getFifoFillLevel(&pads, &fifoLevel);
+  PADS_isFifoFull(&pads, &fifoFull);
 
-            /* Get pressure measurements in one go. */
-            /* Note: Samples must be read faster than the ODR. */
+  if (fifoFull)
+  {
+    PADS_getFifoValues_int(&pads, PADS_FIFO_BUFFER_SIZE, pressure_buffer,
+                             temperature_buffer);
 
-            if (!pads_compute_average_fifo_data())
-            {
-                printf("[Error]: Failed obtaining pads fifo values \r\n");
-            }
-            else
-            {
-                pads_print_data();
-            }
-        }
-    }
-    else
+    printf("FIFO full \r\n");                     
+  }
+  else
+  {
+    if (fifoLevel ==  FIFO_THRESHOLD)
     {
-        // Fifo threshold has been overrun (not nominal operation) 
-        // Principal cause: The fifo is not being read at time because other interrupts
-        // with highter priority are blocking it.
-        printf("[Error]: Fifo threshold has been overrun \r\n");
-        printf("[Info]: Cleaning all pads fifo values \r\n");
-        PADS_setFifoMode(&pads, PADS_bypassMode);
-        PADS_setFifoMode(&pads, PADS_continuousMode);
+      PADS_getFifoValues_int(&pads, FIFO_THRESHOLD, pressure_buffer,
+                             temperature_buffer);
+      
+      pads_compute_averages();
+      pads_print_data();
     }
+    else if (fifoLevel > FIFO_THRESHOLD && fifoLevel < PADS_FIFO_BUFFER_SIZE)
+    {
+      PADS_getFifoValues_int(&pads, PADS_FIFO_BUFFER_SIZE, pressure_buffer,
+                               temperature_buffer);
+      printf("FIFO Threshold Overrun \r\n"); 
+      
+    }
+  }
 }
 
-bool pads_compute_average_fifo_data()
-{
-    current_time = HAL_GetTick() - init_time;            
+static void pads_compute_averages(void) {
+  for (uint8_t group = 0; group < BUFFER_TOTAL_GROUPS; group++) {
+    uint32_t p_sum = 0;
+    uint32_t t_sum = 0;
 
-    if (PADS_getFifoValues_int(&pads, fifo_threshold, pressure_buffer, temperature_buffer) == WE_FAIL)
-    {
-        return false;
+    for (uint8_t i = 0; i < BUFFER_GROUP_SIZE; i++) {
+      uint8_t idx = group * BUFFER_GROUP_SIZE + i;
+      p_sum += pressure_buffer[idx];
+      t_sum += temperature_buffer[idx];
     }
 
-    /* Compute average of captured pressurevalues for each group of the fifo */
-
-
-    for (uint8_t j = 0; j < BUFFER_TOTAL_GROUPS; j++)
-    {
-        uint32_t sum = 0;
-        uint32_t sum2 = 0;
-    
-        for (uint8_t i = 0; i < BUFFER_GROUP_SIZE; i++)
-        {
-            sum += pressure_buffer[j*BUFFER_GROUP_SIZE + i];
-            sum2 += temperature_buffer[j*BUFFER_GROUP_SIZE + i];
-        }
-    
-        pressure_avg[j] = sum / BUFFER_GROUP_SIZE;
-        temperature_avg[j] = sum2 / BUFFER_GROUP_SIZE;
-    }
-
-    return true;
+    pressure_avg[group] = p_sum / BUFFER_GROUP_SIZE;
+    temperature_avg[group] = t_sum / BUFFER_GROUP_SIZE;
+  }
 }
 
+static void pads_print_data(void) {
+  uint32_t elapsed_ms = HAL_GetTick() - start_time_ms;
 
-void pads_print_data()
-{
-    printf("%8" PRIu32 " %8" PRIu16 " %8" PRIu32 "\r\n",
-           pressure_avg[0],
-           temperature_avg[0],
-           current_time);
+  printf("%8" PRIu32 " %8" PRIu16 " %8" PRIu32 " %8u\r\n",
+         pressure_avg[0],temperature_avg[0],elapsed_ms,(unsigned int)fifoLevel);
 }
 
-static bool pads_init(void)
-{
-    /* Wait for boot */
-    HAL_Delay(50);
-    while (WE_isSensorInterfaceReady(&pads) != WE_SUCCESS)
-    {
-    }
+static bool pads_init(void) {
+  HAL_Delay(50);
 
-    HAL_Delay(5);
+  while (WE_isSensorInterfaceReady(&pads) != WE_SUCCESS) {
+  }
 
-    /* First communication test */
-    uint8_t device_id_value = 0;
-    if (PADS_getDeviceID(&pads, &device_id_value) != WE_SUCCESS)
-    {
-        return false;
-    }
-    else
-    {
-        if (device_id_value != PADS_DEVICE_ID_VALUE) /* who am i ? - i am WSEN-PADS! */
-        {
-            return false;
-        }
-    }
+  uint8_t device_id = 0;
+  if (PADS_getDeviceID(&pads, &device_id) != WE_SUCCESS) {
+    return false;
+  }
 
-    /* Perform soft reset of the sensor */
-    PADS_softReset(&pads, PADS_enable);
-    PADS_state_t sw_reset;
-    do
-    {
-        PADS_getSoftResetState(&pads, &sw_reset);
-    } while (sw_reset);
+  if (device_id != PADS_DEVICE_ID_VALUE) {
+    return false;
+  }
 
-    /* Enable low-noise configuration */
-    PADS_setPowerMode(&pads, PADS_lowNoise);
+  /* Soft reset */
+  PADS_softReset(&pads, PADS_enable);
+  PADS_state_t reset_state;
+  do {
+    PADS_getSoftResetState(&pads, &reset_state);
+  } while (reset_state);
 
-    /* Automatic increment register address */
-    PADS_enableAutoIncrement(&pads, PADS_enable);
+  /* Sensor configuration */
+  PADS_setPowerMode(&pads, PADS_lowNoise);
+  PADS_enableAutoIncrement(&pads, PADS_enable);
+  PADS_enableLowPassFilter(&pads, PADS_enable);
+  PADS_setLowPassFilterConfig(&pads, PADS_lpFilterBW2);
+  PADS_enableBlockDataUpdate(&pads, PADS_enable);
 
-    /* Enable additional low pass filter */
-    PADS_enableLowPassFilter(&pads, PADS_enable);
+  /* Interrupt configuration */
+  PADS_setInterruptActiveLevel(&pads, PADS_activeHigh);
+  PADS_setInterruptPinType(&pads, PADS_pushPull);
 
-    /* Set filter bandwidth of ODR/20 */
-    PADS_setLowPassFilterConfig(&pads, PADS_lpFilterBW2);
-
-    /* Enable block data update */
-    PADS_enableBlockDataUpdate(&pads, PADS_enable);
-
-    /* Interrupts are active high */
-    PADS_setInterruptActiveLevel(&pads, PADS_activeHigh);
-
-    /* Interrupts are push-pull */
-    PADS_setInterruptPinType(&pads, PADS_pushPull);
-
-    return true;
+  return true;
 }
 
-static bool pads_start(int fifo_threshold)
-{
-    /* Enable FIFO continuous mode */
-    PADS_setFifoMode(&pads, PADS_continuousMode);
+static bool pads_start(void) {
+  PADS_setFifoMode(&pads, PADS_continuousMode);
+  PADS_setFifoThreshold(&pads, FIFO_THRESHOLD);
+  PADS_enableFifoThresholdInterrupt(&pads, PADS_enable);
+  // PADS_enableFifoOverrunInterrupt(&pads, PADS_enable);     // Se ha sobrescrito 1 medida
+  // PADS_enableFifoFullInterrupt(&pads, PADS_enable);        // Se ha llenado la fifo 
+  PADS_setInterruptEventControl(&pads, PADS_dataReady);
+  PADS_setOutputDataRate(&pads, PADS_outputDataRate100Hz);
 
-    /* Set FIFO fill threshold */
-    PADS_setFifoThreshold(&pads, fifo_threshold);
-
-    /* Interrupt for FIFO buffer fill threshold reached on INT1 */
-    PADS_enableFifoThresholdInterrupt(&pads, PADS_enable);
-
-    /* Activate FIFO threshold interrupt in event control register */
-    PADS_setInterruptEventControl(&pads, PADS_dataReady);
-
-    /* Enable continuous operation with an update rate of 100 Hz */
-    PADS_setOutputDataRate(&pads, PADS_outputDataRate100Hz);
-
-    return true;
+  return true;
 }
 
-static bool mcu_init(void)
-{
+static void mcu_init(void) {
   HAL_Init();
-
   SystemClock_Config();
 
   MX_GPIO_Init();
   MX_I2C2_Init();
   MX_USART2_UART_Init();
-
-  return true;
 }
 
-// Function used by printf
-int __io_putchar(int ch)
-{
-    #if DEBUG_MODE
-        HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
-        return ch;
-    #endif
-
-    return ch;
+int __io_putchar(int ch) {
+#if DEBUG_MODE
+  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+#endif
+  return ch;
 }
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  if (GPIO_Pin == PADS2_INT1_Pin)
-  {
-    interrupt_triggered = true;
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == PADS2_INT1_Pin) {
+    fifo_event = true;
   }
 }
