@@ -108,10 +108,12 @@ int main(void)
   while (1)
   {
     if (fifo_event_0) {
+      fifo_event_0 = false;
       isds_handle_fifo0_event();
     }
 
     if (fifo_event_1) {
+      fifo_event_1 = false;
       isds_handle_fifo1_event();
     }
 
@@ -125,7 +127,7 @@ bool mcu_init() {
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   
-  /* Delay 10 seconds until I2C1_SCL jumper is disconected manually */
+  /* Delay 10 seconds until I2C1_SCL jumper is disconected manually (to activate the I2C1_SCL pull up) */
   HAL_GPIO_WritePin(TEST_LED_GPIO_Port, TEST_LED_Pin, GPIO_PIN_SET);
   HAL_Delay(10000);
   HAL_GPIO_WritePin(TEST_LED_GPIO_Port, TEST_LED_Pin, GPIO_PIN_RESET);
@@ -181,13 +183,23 @@ static bool isds_init(void) {
 }
 
 static bool isds_start(void) {
+
+  /* Disable latched interrupt (Non-Latched: interrupt is asserted briefly and clears automatically) */
   ISDS_enableLatchedInterrupt(&isds, ISDS_disable);
+
+  /* Inerrupt Configuration */
   ISDS_enableInterrupts(&isds, ISDS_enable);
-  ISDS_enableFifoThresholdINT0(&isds, ISDS_enable);
+  ISDS_enableFifoThresholdINT0(&isds, ISDS_enable); 
   ISDS_enableFifoOverrunINT1(&isds, ISDS_enable);
   ISDS_enableFifoFullINT1(&isds, ISDS_enable);
+
+  /* Disable FIFO decimation.
+     Decimation reduces the effective output rate by storing only 1 sample
+     every N sensor samples (output frequency = ODR / decimation factor). */
   ISDS_setFifoAccDecimation(&isds, ISDS_fifoDecimationDisabled);
   ISDS_setFifoGyroDecimation(&isds, ISDS_fifoDecimationDisabled);
+
+  /* Enable coninious mode */
   ISDS_setFifoMode(&isds, ISDS_continuousMode);
 
   return true;
@@ -208,11 +220,11 @@ static bool isds_handle_fifo1_event() {
 
   if (status.fifoOverrunState)
   {
-    printf("[Error]: WSEN ISDS FIFO buffer overrun");
+    printf("[Error]: WSEN ISDS FIFO overrun");
   }
   else if (status.fifoFullSmartState)
   {
-    printf("[Error]: FIFO buffer is full" );
+    printf("[Error]: FIFO buffer will be fool at the next measurement" );
   }
 
   /* Restart data collection by first setting bypass mode and then re-enabling FIFO mode */
@@ -248,7 +260,6 @@ bool isds_obtain_data() {
 
   }
   return false;
-
 }
 
 // Function used by printf
@@ -262,10 +273,15 @@ int __io_putchar(int ch) {
 bool isds_print_data() {
   uint32_t elapsed_ms = HAL_GetTick() - start_time_ms;
 
-  printf("%8" PRId32 " %8" PRId32 " %8" PRId32 " %8" PRId32 " %8" PRId32 " %8" PRId32 " %8" PRId32 "\r\n",
-        isds_angular_rate[0].xRate,isds_angular_rate[0].yRate,isds_angular_rate[0].zRate,
-        isds_accelerations[0].xAcc,isds_accelerations[0].yAcc,isds_accelerations[0].zAcc,
-        elapsed_ms);
+  /* Header */
+  printf("%-14s %-14s %-14s %-14s %-14s %-14s %-14s\r\n",
+         "Rate_x (dps)","Rate_y (dps)","Rate_z (dps)",
+         "Acc_x (mg)","Acc_y (mg)","Acc_z (mg)","time (ms)");
+
+  /* Measured data */
+  printf("%-14" PRId32 " %-14" PRId32 " %-14" PRId32" %-14" PRId32 " %-14" PRId32 " %-14" PRId32" %-14" PRId32 "\r\n",
+         isds_angular_rate[0].xRate,isds_angular_rate[0].yRate,isds_angular_rate[0].zRate,
+         isds_accelerations[0].xAcc,isds_accelerations[0].yAcc,isds_accelerations[0].zAcc,elapsed_ms);
 
   return true;
 }
