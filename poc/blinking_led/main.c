@@ -16,6 +16,7 @@ int main(void)
   HAL_Init();
   SystemClock_Config();
   MX_GPIO_Init();
+  HAL_Delay(10000);
 
   while (1)
   {
