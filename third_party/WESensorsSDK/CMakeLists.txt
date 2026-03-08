@@ -13,14 +13,18 @@ target_include_directories(wsensdk INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
     platform
     WSEN_PADS_2511020213301
+    WSEN_HIDS_2525020210002
 )
 
 target_sources(wsensdk INTERFACE
     platform/platform.c
     WSEN_PADS_2511020213301/WSEN_PADS_2511020213301.c
+    WSEN_HIDS_2525020210002/WSEN_HIDS_2525020210002.c
 )
 
 target_link_directories(wsensdk INTERFACE
+
+
 )
 
 target_link_libraries(wsensdk INTERFACE

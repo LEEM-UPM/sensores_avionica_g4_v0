@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-#
+#z
 # This file is generated only once,
 # and is not re-generated if converter is called multiple times.
 #
@@ -45,8 +45,8 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    poc/wsen_pads/main.c
-    # poc/wsen_pads/main.c
+    poc/wsen_hids/main.c
+    # poc/wsen_hids/main.c
     # Add user sources here
 )
 
@@ -70,4 +70,26 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
     wsensdk
     # Add user defined libraries
+)
+# =========================================================
+# NUEVO TARGET: FDCAN POC
+# =========================================================
+
+# 1. Creamos el nuevo ejecutable apuntando a TU archivo nuevo
+add_executable(fdcan_test poc/fdcan_test/main.c)
+
+# 2. Le damos acceso a las librerías del STM32 (HAL, CMSIS, etc.)
+# Esto es vital para que funcionen HAL_Init, SystemClock_Config, etc.
+target_link_libraries(fdcan_test PRIVATE
+    stm32cubemx
+)
+
+# 3. Le decimos dónde están los archivos .h básicos (main.h, etc)
+target_include_directories(fdcan_test PRIVATE
+    Core/Inc
+)
+
+# 4. (Opcional) Si usas funciones matemáticas float, definimos esto también
+target_compile_definitions(fdcan_test PRIVATE
+    WE_USE_FLOAT
 )
