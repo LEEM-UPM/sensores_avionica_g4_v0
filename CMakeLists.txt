@@ -46,9 +46,9 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
-
     # poc/wsen_pads_poc.c
-    poc/fdcan_test_poc.c
+    # poc/fdcan_test_loopback.c
+    poc/fdcan_test_end_to_end.c
     # poc/GNSS_test_poc.c
     # poc/blinker_test.c
 )
