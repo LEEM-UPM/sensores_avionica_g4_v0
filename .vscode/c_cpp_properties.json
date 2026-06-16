@@ -3,9 +3,10 @@
         {
             "name": "STM32",
             "compileCommands": "${workspaceFolder}/build/Debug/compile_commands.json",
-            "intelliSenseMode": "windows-msvc-x64",
-            "cStandard": "c17",
-            "cppStandard": "c++17"
+            "intelliSenseMode": "gcc-arm",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "compilerPath": "/usr/bin/arm-none-eabi-gcc"
         }
     ],
     "version": 4
