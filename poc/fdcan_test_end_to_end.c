@@ -5,6 +5,7 @@
 
 #define FDCAN_AVIONICS_ID 0x10A
 #define FDCAN_CORE_ID 0x20A
+#define FORCE_11_BYTES 0x7FF
 
 extern void SystemClock_Config(void);
 
@@ -12,7 +13,12 @@ FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_FilterTypeDef RecvFilter;
 uint8_t TxData[8] = {'h','e','l','l','o','\n'};
 
-void main(){
+int main(){
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
+    HAL_FDCAN_Start(&hfdcan1);
+
     // transmit config
     TxHeader.Identifier = FDCAN_AVIONICS_ID;
     TxHeader.IdType = FDCAN_STANDARD_ID;
@@ -30,7 +36,7 @@ void main(){
     RecvFilter.FilterType = FDCAN_FILTER_MASK;
     RecvFilter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
     RecvFilter.FilterID1 = FDCAN_CORE_ID;
-    RecvFilter.FilterID2 = 0x7FF; // forces to match 11 bytes
+    RecvFilter.FilterID2 = FORCE_11_BYTES; // forces to match 11 bytes
 
     if(HAL_FDCAN_ConfigFilter(&hfdcan1, &RecvFilter) != HAL_OK){
         Error_Handler();
@@ -43,8 +49,10 @@ void main(){
     HAL_FDCAN_Start(&hfdcan1);
     HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
 
+    while(1){
     // send hello message
-    if(HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK ){
-        Error_Handler();
+        HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData);
+        HAL_GPIO_TogglePin(TEST_LED_GPIO_Port, TEST_LED_Pin);
+        HAL_Delay(100);
     }
 }
