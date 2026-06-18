@@ -9,98 +9,127 @@
 
 
 
+ /* === Includes ============================================================ */
 #include "main.h"
 #include "usart.h"
 #include "gpio.h"
 #include "minmea.h"
+#include <string.h>
+#include <stdbool.h>
 
 
-// State variables 
-#define UART_RX_BUFFER_SIZE 128 // circular
+/* === Configuration ======================================================= */
+#define DEBUG_MODE true
+#define UART_RX_BUFFER_SIZE 128 
 
-// Global GPS data variables
+const uint8_t UBX_CFG_RATE_5HZ[] = {
+    0xB5, 0x62, 0x06, 0x8A, 0x0A, 0x00, 
+    0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x21, 0x30, 0xC8, 0x00, 
+    0xF3, 0xAC 
+};
+
+/* === Globals ============================================================= */
+/* Flag set by ISR when FIFO treshhold overflows */
+static volatile bool gnss_event = false;
+
+/* memory buffers */
+static uint8_t gps_dma_buffer[UART_RX_BUFFER_SIZE];
+static char process_buffer[UART_RX_BUFFER_SIZE];
+
+/* state variables */
 float g_latitud = 0.0f;
 float g_longuitud = 0.0f;
 int g_satelites_activos = 0;
 
-// exterm function declarations
+/* Time reference */
+static uint32_t start_time_ms = 0;
+
+/* === Forward declarations ============================================== */
 extern void SystemClock_Config();
-// function declarations
-void M10S_Init_Configuration(UART_HandleTypeDef *huart);
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
+static void mcu_init(void);
+static void M10S_init(UART_HandleTypeDef *huart);
+static void gnss_process_block(void);
+static void gnss_dma_startup(void);
 
-// llaves de configuracion a 5HZ
-const uint8_t UBX_CFG_RATE_5HZ[] = {
-    0xB5, 0x62, 0x06, 0x8A, 0x0A, 0x00, 
-    0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x21, 0x30, 0xC8, 0x00, 
-    0xF3, 0xAC // Checksum calculado (alg de fletcher)
-};
-
-extern UART_HandleTypeDef huart2;
-
-// MAIN CODE
+/* === Main ============================================================== */
 int main(){
+    
+    mcu_init();
+    M10S_init(&huart2);
+    gnss_dma_startup();
+
+    start_time_ms = HAL_GetTick();
+
+    
+    while(1){
+
+        if(gnss_event){
+            gnss_event = false;
+            gnss_process_block();
+        }
+    }
+}
+
+
+static void gnss_process_block(void){
+    char* line = strtok(process_buffer, "\r\n");
+
+    while(line != NULL){
+        if(minmea_sentence_id(line, false) == MINMEA_SENTENCE_GGA){
+            struct minmea_sentence_gga frameGGA;
+
+            if(minmea_parse_gga(&frameGGA, line)){
+                g_latitud = minmea_tocoord(&frameGGA.latitude);
+                g_longuitud = minmea_tocoord(&frameGGA.longitude);
+                g_satelites_activos = frameGGA.satellites_tracked;
+
+                #if DEBUG_MODE
+                printf("[GNSS SYNC] Lat: %f | Lon: %f | satellites: %d\r\n", g_latitud, g_longuitud, g_satelites_activos);
+                #endif
+            }
+        }
+
+        line = strtok(NULL, "\r\n");
+    }
+}
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
+    if(huart->Instance == USART2){
+        memcpy(process_buffer, (char*)gps_dma_buffer, Size);
+        process_buffer[Size] = '\0';
+
+        gnss_event = true;
+
+        // reload DMA since flag fired
+        gnss_dma_startup();
+    }
+}
+
+static void gnss_dma_startup(void){
+    HAL_UARTEx_ReceiveToIdle_DMA_(&huart2, gps_dma_buffer, UART_RX_BUFFER_SIZE);
+    __HAL_DMA_DISABLE_IT(huart2.hdmarx, DMA_IT_HT);
+}
+
+static void mcu_init(void){
     HAL_Init();
     SystemClock_Config();
     MX_GPIO_Init();
     MX_USART2_UART_Init();
-
-    M10S_Init_Configuration(&huart2);
-
-    while(1){
-        // GPS data is updated automatically in HAL_UART_RxCpltCallback
-        // Access g_latitud, g_longuitud, g_satelites_activos as needed
-        HAL_Delay(1000);
-    }
-    
-
-    
 }
 
-void M10S_Init_Configuration(UART_HandleTypeDef *huart){
+
+static void M10S_init(UART_HandleTypeDef *huart){
     HAL_Delay(500);
     HAL_UART_Transmit(huart, (uint8_t*)UBX_CFG_RATE_5HZ, sizeof(UBX_CFG_RATE_5HZ), 100);
     HAL_Delay(100);
 }
 
-// callback the interrucion al recibir un byte
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-    static int line_idx = 0;
-    static char line_buffer[UART_RX_BUFFER_SIZE];
-    uint8_t rx_byte;
-
-    HAL_UART_Receive_IT(huart, &rx_byte, 1);
-
-    if(huart->Instance == USART2){
-        // add the line if place available on circular buffer
-        if(line_idx < sizeof(line_buffer) - 1){
-            line_buffer[line_idx++] = (char)rx_byte;
-        }
-
-        // detectar fin de linea 
-        if(rx_byte == '\n'){
-            line_buffer[line_idx] = 0;
-
-            // Filtrar solo las lineas que me interesan
-            if(minmea_sentence_id(line_buffer,false) == MINMEA_SENTENCE_RMC){
-                struct minmea_sentence_rmc frame;
-
-                // en principio datos de altitud son del barometro (gps se capa)
-                if(minmea_parse_rmc(&frame,line_buffer)){
-                    g_latitud = minmea_tocoord(&frame.latitude);
-                    g_longuitud = minmea_tocoord(&frame.longitude);
-                    g_satelites_activos = frame.satellites_tracked;
-                }
-            }
-
-            //limpiar el indice para escribir otra linea desde 0
-            line_idx = 0;
-
-
-            HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
-        }
-        
-    }
+int __io_putchar(int ch){
+#if DEBUG_MODE
+    HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+#endif
+    return ch;
 }
+
 
 
