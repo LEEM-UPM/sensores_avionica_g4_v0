@@ -16,6 +16,7 @@
 #include "minmea.h"
 #include <string.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 
 /* === Configuration ======================================================= */
@@ -106,7 +107,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
 }
 
 static void gnss_dma_startup(void){
-    HAL_UARTEx_ReceiveToIdle_DMA_(&huart2, gps_dma_buffer, UART_RX_BUFFER_SIZE);
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart2, gps_dma_buffer, UART_RX_BUFFER_SIZE);
     __HAL_DMA_DISABLE_IT(huart2.hdmarx, DMA_IT_HT);
 }
 
