@@ -21,6 +21,7 @@
 #include "fdcan.h"
 #include "i2c.h"
 #include "usart.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -112,11 +113,6 @@ void SystemClock_Config(void)
   /** Enables the Clock Security System
   */
   HAL_RCC_EnableCSS();
-  
-  /** Update SystemCoreClock and configure SysTick for HAL_Delay
-  */
-  SystemCoreClockUpdate();
-  HAL_SYSTICK_Config(HAL_RCC_GetSysClockFreq() / 1000);
 }
 
 /* USER CODE BEGIN 4 */
