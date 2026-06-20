@@ -54,8 +54,7 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, ACT_ANTENNA_Pin|GPS_RST_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, CAN1_STB_Pin|CAN2_STB_Pin|AIRBRAKE_Pin|VNAV_TARE_Pin
-                          |TEST_LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, CAN1_STB_Pin|CAN2_STB_Pin|VNAV_TARE_Pin|TEST_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : MAG_INT_Pin IMU1_INT0_Pin IMU1_INT1_Pin */
   GPIO_InitStruct.Pin = MAG_INT_Pin|IMU1_INT0_Pin|IMU1_INT1_Pin;
@@ -88,10 +87,8 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : CAN1_STB_Pin CAN2_STB_Pin AIRBRAKE_Pin VNAV_TARE_Pin
-                           TEST_LED_Pin */
-  GPIO_InitStruct.Pin = CAN1_STB_Pin|CAN2_STB_Pin|AIRBRAKE_Pin|VNAV_TARE_Pin
-                          |TEST_LED_Pin;
+  /*Configure GPIO pins : CAN1_STB_Pin CAN2_STB_Pin VNAV_TARE_Pin TEST_LED_Pin */
+  GPIO_InitStruct.Pin = CAN1_STB_Pin|CAN2_STB_Pin|VNAV_TARE_Pin|TEST_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
