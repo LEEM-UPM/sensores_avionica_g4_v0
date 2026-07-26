@@ -59,7 +59,7 @@ extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c2;
 extern UART_HandleTypeDef huart2;
 /* USER CODE BEGIN EV */
-
+extern DMA_HandleTypeDef hdma_i2c2_rx;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -304,5 +304,11 @@ void EXTI15_10_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
-
+/**
+  * @brief This function handles DMA1 channel 6 global interrupt (I2C2 RX).
+  */
+void DMA1_Channel6_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(&hdma_i2c2_rx);
+}
 /* USER CODE END 1 */

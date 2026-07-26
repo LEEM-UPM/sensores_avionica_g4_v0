@@ -1,14 +1,15 @@
 /******************************************************************************
- * WSEN-PADS FIFO threshold interrupt - Proof of Concept
+ * WSEN-PADS FIFO threshold interrupt + DMA - Proof of Concept
+ * https://www.we-online.com/components/products/manual/Manual-um-wsen-pads-2511020213301%20(rev3.1).pdf
  *
- * Concept:
- *  - Sensor accumulates samples in FIFO
- *  - FIFO threshold interrupt triggers data read
- *  - Firmware reacts to event (event-driven)
+ * Flujo:
+ *  1. El sensor acumula muestras en su FIFO interno.
+ *  2. Al superar el umbral, genera una interrupción en PA5 (PADS2_INT1).
+ *  3. La ISR activa un flag; el main lanza una lectura DMA (no bloqueante).
+ *  4. Al terminar el DMA, el callback decodifica e imprime las muestras.
  ******************************************************************************/
 
 /* === Includes ============================================================ */
-#include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -20,14 +21,16 @@
 #include "WSEN_PADS_2511020213301.h"
 #include "platform.h"
 
-/* === Configuration ======================================================= */
+/* === Configuración ======================================================= */
 #define DEBUG_MODE true
 
+/* Número de muestras acumuladas antes de generar la interrupción de umbral */
 #define FIFO_THRESHOLD 25U
-#define BUFFER_GROUP_SIZE 5U
-#define MAX_GROUPS (PADS_FIFO_BUFFER_SIZE / BUFFER_GROUP_SIZE)
 
-/* === Sensor interface ==================================================== */
+/* Cada muestra del sensor ocupa 5 bytes en bruto: 3 de presión + 2 de temperatura */
+#define PADS_RAW_BYTES_PER_SAMPLE 5U
+
+/* === Interfaz con el sensor ============================================== */
 WE_sensorInterface_t pads = {
     .sensorType = WE_PADS,
     .interfaceType = WE_i2c,
@@ -40,40 +43,43 @@ WE_sensorInterface_t pads = {
                 .writeTimeout = 1000},
     .handle = &hi2c2};
 
-/* === Globals ============================================================= */
-/* Flag set by ISR when FIFO threshold interrupt occurs */
+/* === Variables globales ================================================== */
+
+/* Flag activado por la ISR de EXTI cuando el FIFO supera el umbral */
 static volatile bool fifo_event = false;
 
-/* FIFO raw buffers */
+/* Buffer DMA donde el periférico I2C escribe los bytes en bruto */
+static uint8_t dma_rx_buf[PADS_FIFO_BUFFER_SIZE * PADS_RAW_BYTES_PER_SAMPLE];
+
+/* Número de muestras pedidas en la transferencia DMA en curso */
+static volatile uint8_t dma_samples_pending = 0;
+
+/* Buffers de muestras ya decodificadas (presión en Pa, temperatura raw) */
 static int32_t pressure_buffer[PADS_FIFO_BUFFER_SIZE];
 static int16_t temperature_buffer[PADS_FIFO_BUFFER_SIZE];
 
-/* Processed data */
-static uint32_t pressure_avg[MAX_GROUPS];
-static uint16_t temperature_avg[MAX_GROUPS];
-
-/* Time reference */
+/* Referencia de tiempo para los mensajes de debug */
 static uint32_t start_time_ms = 0;
 
-/* === Forward declarations ============================================== */
+/* === Declaraciones previas =============================================== */
 extern void SystemClock_Config(void);
 static void mcu_init(void);
 static bool pads_init(void);
 static bool pads_start(uint8_t fifo_threshold);
 static void pads_handle_fifo_event(void);
-static void pads_compute_averages(uint8_t num_samples);
-static void pads_print_data(uint8_t num_groups, uint8_t raw_level);
+static void pads_decode_dma_buffer(uint8_t num_samples);
+static void pads_print_data(uint8_t num_samples);
 
-/* === Main ================================================================
- */
+/* === Main ================================================================ */
 int main(void) {
   mcu_init();
   pads_init();
   pads_start(FIFO_THRESHOLD);
 
   start_time_ms = HAL_GetTick();
-  printf("WSEN-PADS Ready. Waiting for data...\r\n");
+  printf("WSEN-PADS listo. Esperando datos...\r\n");
 
+  /* El main solo gestiona el flag; todo el trabajo pesado ocurre en callbacks */
   while (1) {
     if (fifo_event) {
       fifo_event = false;
@@ -82,6 +88,7 @@ int main(void) {
   }
 }
 
+/* Lanza la lectura DMA cuando el FIFO tiene datos */
 static void pads_handle_fifo_event(void) {
   uint8_t fifo_level = 0;
 
@@ -93,63 +100,67 @@ static void pads_handle_fifo_event(void) {
     return;
   }
 
-  /* 2. Protección de desbordamiento de buffer local */
+  /* Limitar al tamaño máximo del buffer para no desbordar */
   uint8_t samples_to_read =
       (fifo_level > PADS_FIFO_BUFFER_SIZE) ? PADS_FIFO_BUFFER_SIZE : fifo_level;
 
-  if (PADS_getFifoValues_int(&pads, samples_to_read, pressure_buffer,
-                             temperature_buffer) != WE_SUCCESS) {
+  if (fifo_level >= PADS_FIFO_BUFFER_SIZE) {
+    printf("[WARN]: FIFO lleno, posible pérdida de datos.\r\n");
+  }
+
+  /* Iniciar transferencia DMA: no bloqueante, continúa en el callback */
+  dma_samples_pending = samples_to_read;
+  HAL_I2C_Mem_Read_DMA(&hi2c2,
+                        (uint16_t)(PADS_ADDRESS_I2C_1 << 1),
+                        PADS_FIFO_DATA_P_XL_REG,
+                        I2C_MEMADD_SIZE_8BIT,
+                        dma_rx_buf,
+                        (uint16_t)(samples_to_read * PADS_RAW_BYTES_PER_SAMPLE));
+}
+
+/* Llamado automáticamente por HAL cuando el DMA termina de recibir */
+void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c) {
+  if (hi2c->Instance != I2C2) {
     return;
   }
 
-  if (fifo_level >= PADS_FIFO_BUFFER_SIZE) {
-    printf("[WARN]: FIFO Overrun detected! Data loss occurred.\r\n");
-  }
+  uint8_t num_samples = dma_samples_pending;
+  dma_samples_pending = 0;
 
-  if (samples_to_read >= FIFO_THRESHOLD) {
-    uint8_t groups_processed = samples_to_read / BUFFER_GROUP_SIZE;
-    pads_compute_averages(samples_to_read);
-    pads_print_data(groups_processed, fifo_level);
+  pads_decode_dma_buffer(num_samples);
+  pads_print_data(num_samples);
+}
+
+/* Convierte los bytes en bruto del buffer DMA a presión (Pa) y temperatura */
+static void pads_decode_dma_buffer(uint8_t num_samples) {
+  for (uint8_t i = 0; i < num_samples; i++) {
+    const uint8_t *b = &dma_rx_buf[i * PADS_RAW_BYTES_PER_SAMPLE];
+
+    /* Presión: 24 bits con signo, primero el byte menos significativo */
+    int32_t raw_p = (int32_t)((uint32_t)b[2] << 24 |
+                               (uint32_t)b[1] << 16 |
+                               (uint32_t)b[0] << 8);
+    raw_p /= 256;                        /* extensión de signo a 32 bits */
+    pressure_buffer[i] = (raw_p * 100) / 4096; /* conversión a Pa */
+
+    /* Temperatura: 16 bits con signo, primero el byte menos significativo */
+    temperature_buffer[i] = (int16_t)((uint16_t)b[4] << 8 | b[3]);
   }
 }
 
-static void pads_compute_averages(uint8_t num_samples) {
-  uint8_t total_groups = num_samples / BUFFER_GROUP_SIZE;
-  if (total_groups > MAX_GROUPS)
-    total_groups = MAX_GROUPS;
-
-  for (uint8_t group = 0; group < total_groups; group++) {
-    int64_t p_sum = 0;
-    int32_t t_sum = 0;
-
-    for (uint8_t i = 0; i < BUFFER_GROUP_SIZE; i++) {
-      uint8_t idx = (group * BUFFER_GROUP_SIZE) + i;
-      p_sum += pressure_buffer[idx];
-      t_sum += temperature_buffer[idx];
-    }
-
-    pressure_avg[group] = (uint32_t)(p_sum / BUFFER_GROUP_SIZE);
-    temperature_avg[group] = (uint16_t)(t_sum / BUFFER_GROUP_SIZE);
-  }
-}
-
-static void pads_print_data(uint8_t num_groups, uint8_t raw_level) {
+/* Imprime todas las muestras decodificadas por UART */
+static void pads_print_data(uint8_t num_samples) {
   uint32_t elapsed = HAL_GetTick() - start_time_ms;
 
-  // Imprimimos una cabecera para saber cuántos datos han llegado en este lote
-  printf("--- Batch at %lu ms | FIFO Level: %u | Groups: %u ---\r\n", elapsed,
-         raw_level, num_groups);
+  printf("--- %lu ms | %u muestras ---\r\n", elapsed, num_samples);
 
-  // Bucle para recorrer y mostrar cada una de las medidas promediadas
-  for (uint8_t i = 0; i < num_groups; i++) {
-    printf("  Group[%u] -> Pres: %lu Pa | Temp: %u\r\n", i, pressure_avg[i],
-           temperature_avg[i]);
+  for (uint8_t i = 0; i < num_samples; i++) {
+    printf("  [%u] Presion: %ld Pa | Temp raw: %d\r\n",
+           i, pressure_buffer[i], temperature_buffer[i]);
   }
 }
 
 static bool pads_init(void) {
-  HAL_Delay(50);
-
   while (WE_isSensorInterfaceReady(&pads) != WE_SUCCESS) {
   }
 

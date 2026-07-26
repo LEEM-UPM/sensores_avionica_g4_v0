@@ -37,7 +37,7 @@ extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c2;
 
 /* USER CODE BEGIN Private defines */
-
+extern DMA_HandleTypeDef hdma_i2c2_rx;
 /* USER CODE END Private defines */
 
 void MX_I2C1_Init(void);

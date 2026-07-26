@@ -1,12 +1,24 @@
 {
-    "configurations": [
-        {
-            "name": "STM32",
-            "compileCommands": "${workspaceFolder}/build/Debug/compile_commands.json",
-            "intelliSenseMode": "windows-msvc-x64",
-            "cStandard": "c17",
-            "cppStandard": "c++17"
-        }
-    ],
-    "version": 4
+  "configurations": [
+    {
+      "name": "STM32",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "/Applications/ArmGNUToolchain/15.2.rel1/arm-none-eabi/bin/../lib/gcc/arm-none-eabi/15.2.1/include"
+      ],
+      "defines": [
+          "STM32G4xx",
+          "USE_HAL_DRIVER",
+          "__GNUC__",
+          "__arm__",
+          "__thumb__",
+          "__ARM_ARCH_7EM__"
+      ],
+      "compilerPath": "/opt/homebrew/bin/arm-none-eabi-gcc",
+      "compilerArgs": ["-mcpu=cortex-m4", "-mthumb"],
+      "intelliSenseMode": "gcc-arm",
+      "cStandard": "c11"
+    }
+  ],
+  "version": 4
 }
