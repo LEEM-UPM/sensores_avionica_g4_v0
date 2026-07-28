@@ -48,12 +48,14 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     poc/wsen_pads/main.c
     # poc/wsen_pads/main.c
     # Add user sources here
+    Core/Src/ASPID_FDCAN_NETWORK.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     app
     # Add user defined include paths
+    Core/Inc/ASPID_FDCAN_NETWORK.h
 )
 
 # Add project symbols (macros)
