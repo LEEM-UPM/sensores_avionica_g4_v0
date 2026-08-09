@@ -4,3 +4,7 @@ mx.scratch
 .vscode
 .DS_Store
 .github
+Drivers/CMSIS/DSP
+Drivers/CMSIS/NN
+Drivers/CMSIS/RTOS
+Drivers/CMSIS/RTOS2
