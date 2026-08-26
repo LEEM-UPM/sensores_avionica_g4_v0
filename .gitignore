@@ -1,6 +1,12 @@
 build
 mx.scratch
+<<<<<<< HEAD
 !.settings
 .DS_Store
 .settings
+=======
+.settings
+.vscode
+.DS_Store
+>>>>>>> 27-añadir-simulación-renode-al-repositorio
 .github
