@@ -1,0 +1,39 @@
+sysbus LoadELF @build/Debug/sensores_avionica_g4_v0.elf
+
+# Configuración de nivel de log general
+logLevel 3
+
+# Trackeo de Periféricos Específicos
+# Descomenta las líneas siguientes quitando la '#' para escuchar a cada periférico
+
+# Logger del GPS (LPUART1)
+# logLevel -1 sysbus.lpuart1
+# showAnalyzer sysbus.lpuart1
+#include @renode/tests/test_gps.py
+
+# Logger del VNAV (USART2)
+# logLevel -1 sysbus.usart2
+# showAnalyzer sysbus.usart2
+
+# Logger del IMU1 (I2C1)
+# logLevel -1 sysbus.i2c1.imu1
+# include @renode/tests/test_imu1.py
+
+# Logger del Magnetómetro (I2C1)
+# logLevel -1 sysbus.i2c1.mag
+
+# Logger del IMU2 (I2C2)
+# logLevel -1 sysbus.i2c2.imu2
+# include @renode/tests/test_imu2.py
+
+# Logger del Barómetro 1 (I2C1)
+# logLevel -1 sysbus.i2c1.baro1
+# include @renode/tests/test_baro1.py
+
+# Logger del Barómetro 2 (I2C2)
+# logLevel -1 sysbus.i2c2.baro2
+# include @renode/tests/test_baro2.py
+
+# Logger del Sensor de Humedad (I2C1)
+# logLevel -1 sysbus.i2c1.hids
+# include @renode/tests/test_hids.py

@@ -1,0 +1,11 @@
+# Incluir los periféricos custom creados con C#
+include @renode/peripherals/WSEN_ISDS.cs
+include @renode/peripherals/LSM6DSV32XTR.cs
+include @renode/peripherals/WSEN_PADS.cs
+include @renode/peripherals/MLX90393.cs
+include @renode/peripherals/WSEN_HIDS.cs
+
+mach create "SensoresAvionicaG4"
+machine LoadPlatformDescription @renode/sensores_avionica_g4.repl
+
+i @renode/scripts/run.resc
