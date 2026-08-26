@@ -1,3 +1,6 @@
 build
 mx.scratch
-!.settings
+.settings
+.vscode
+.DS_Store
+.github
