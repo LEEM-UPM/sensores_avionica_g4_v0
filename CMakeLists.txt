@@ -32,7 +32,8 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 enable_language(C ASM)
 
 # Create an executable object type
-add_executable(${CMAKE_PROJECT_NAME})
+add_executable(${CMAKE_PROJECT_NAME}
+    Core/Inc/vectorNav.h)
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
@@ -45,16 +46,25 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    poc/wsen_pads/main.c
-    # poc/wsen_pads/main.c
     # Add user sources here
+    Core/Src/vectorNav.c
+    # poc/wsen_pads/main.c
+    poc/VectorNav_VN100/main.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     app
+    Core/Inc
+    Drivers/STM32G4xx_HAL_Driver/Inc
+    Drivers/STM32G4xx_HAL_Driver/Inc/Legacy
+    Drivers/CMSIS/Device/ST/STM32G4xx/Include
+    Drivers/CMSIS/Include
     # Add user defined include paths
 )
+
+# Link stm32cubemx for HAL includes and compiler paths
+target_link_libraries(${CMAKE_PROJECT_NAME} stm32cubemx)
 
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
