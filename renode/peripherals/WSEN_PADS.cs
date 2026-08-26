@@ -76,12 +76,22 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithFlag(0, FieldMode.Read, name: "P_DA", valueProviderCallback: _ => true)
                 .WithFlag(1, FieldMode.Read, name: "T_DA", valueProviderCallback: _ => true);
 
-            Registers.PressOutXL.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "PRESS_OUT_XL", valueProviderCallback: _ => 0x00);
-            Registers.PressOutL.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "PRESS_OUT_L", valueProviderCallback: _ => 0x00);
-            Registers.PressOutH.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "PRESS_OUT_H", valueProviderCallback: _ => 0x40);
+            Registers.PressOutXL.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "PRESS_OUT_XL", valueProviderCallback: _ => (byte)(CalculateRawPressure() & 0xFF));
+            Registers.PressOutL.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "PRESS_OUT_L", valueProviderCallback: _ => (byte)((CalculateRawPressure() >> 8) & 0xFF));
+            Registers.PressOutH.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "PRESS_OUT_H", valueProviderCallback: _ => (byte)((CalculateRawPressure() >> 16) & 0xFF));
 
-            Registers.TempOutL.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "TEMP_OUT_L", valueProviderCallback: _ => 0x00);
-            Registers.TempOutH.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "TEMP_OUT_H", valueProviderCallback: _ => 0x20);
+            Registers.TempOutL.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "TEMP_OUT_L", valueProviderCallback: _ => (byte)(CalculateRawTemperature() & 0xFF));
+            Registers.TempOutH.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "TEMP_OUT_H", valueProviderCallback: _ => (byte)((CalculateRawTemperature() >> 8) & 0xFF));
+        }
+
+        private uint CalculateRawPressure()
+        {
+            return (uint)(Pressure * 4096m / 100m);
+        }
+
+        private ushort CalculateRawTemperature()
+        {
+            return (ushort)(Temperature * 100m);
         }
 
         private byte registerAddress;

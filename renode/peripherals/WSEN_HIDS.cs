@@ -75,11 +75,23 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithFlag(0, FieldMode.Read, name: "T_DA", valueProviderCallback: _ => true)
                 .WithFlag(1, FieldMode.Read, name: "H_DA", valueProviderCallback: _ => true);
 
-            Registers.TempOutL.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "TEMP_OUT_L", valueProviderCallback: _ => 0x00);
-            Registers.TempOutH.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "TEMP_OUT_H", valueProviderCallback: _ => 0x20);
+            Registers.TempOutL.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "TEMP_OUT_L", valueProviderCallback: _ => (byte)(CalculateRawTemperature() & 0xFF));
+            Registers.TempOutH.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "TEMP_OUT_H", valueProviderCallback: _ => (byte)((CalculateRawTemperature() >> 8) & 0xFF));
 
-            Registers.HumOutL.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "HUM_OUT_L", valueProviderCallback: _ => 0x00);
-            Registers.HumOutH.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "HUM_OUT_H", valueProviderCallback: _ => 0x40);
+            Registers.HumOutL.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "HUM_OUT_L", valueProviderCallback: _ => (byte)(CalculateRawHumidity() & 0xFF));
+            Registers.HumOutH.Define(RegistersCollection, 0x00).WithValueField(0, 8, FieldMode.Read, name: "HUM_OUT_H", valueProviderCallback: _ => (byte)((CalculateRawHumidity() >> 8) & 0xFF));
+        }
+
+        private ushort CalculateRawTemperature()
+        {
+            // t_ticks = ((Temperature * 1000) + 45000) * 8192 / 21875
+            return (ushort)(((Temperature * 1000m + 45000m) * 8192m) / 21875m);
+        }
+
+        private ushort CalculateRawHumidity()
+        {
+            // rh_ticks = ((Humidity * 1000) + 6000) * 8192 / 15625
+            return (ushort)(((Humidity * 1000m + 6000m) * 8192m) / 15625m);
         }
 
         private byte registerAddress;

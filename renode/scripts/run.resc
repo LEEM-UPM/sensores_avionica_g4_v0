@@ -25,3 +25,15 @@ logLevel 3
 # Logger del IMU2 (I2C2)
 # logLevel -1 sysbus.i2c2.imu2
 # include @renode/tests/test_imu2.py
+
+# Logger del Barómetro 1 (I2C1)
+# logLevel -1 sysbus.i2c1.baro1
+# include @renode/tests/test_baro1.py
+
+# Logger del Barómetro 2 (I2C2)
+# logLevel -1 sysbus.i2c2.baro2
+# include @renode/tests/test_baro2.py
+
+# Logger del Sensor de Humedad (I2C1)
+# logLevel -1 sysbus.i2c1.hids
+# include @renode/tests/test_hids.py
