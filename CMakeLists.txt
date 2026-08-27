@@ -27,7 +27,7 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE)
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # poc/wsen_pads/main.c
-    poc/max_m10s/main.c
+    poc/gps_test/main.c
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
